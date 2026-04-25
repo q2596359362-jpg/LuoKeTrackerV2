@@ -21,30 +21,36 @@ jobs:
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
 
-    - name: Download OpenCV Android SDK
+    - name: Download and Setup OpenCV Android SDK
       run: |
+        # Download OpenCV SDK
         curl -L https://github.com/opencv/opencv/releases/download/4.9.0/opencv-4.9.0-android-sdk.zip -o opencv-sdk.zip
         unzip -q opencv-sdk.zip
-        cp -r OpenCV-android-sdk/sdk/java opencv_sdk/src
-        cp -r OpenCV-android-sdk/sdk/native/libs opencv_sdk/src/main/jniLibs
-        mkdir -p opencv_sdk/src/main
-        mv opencv_sdk/src/jniLibs opencv_sdk/src/main/jniLibs 2>/dev/null || true
-        mkdir -p opencv_sdk/src/main/java
-        cp -r OpenCV-android-sdk/sdk/java/src/* opencv_sdk/src/main/java/ 2>/dev/null || true
-        rm -rf OpenCV-android-sdk opencv-sdk.zip
-
-    - name: Prepare OpenCV module
-      run: |
-        mkdir -p opencv_sdk/src/main
-        if [ -d "opencv_sdk/src/jniLibs" ]; then
-          cp -r opencv_sdk/src/jniLibs opencv_sdk/src/main/jniLibs
-        fi
+        
+        # Create OpenCV module directory structure FIRST
+        mkdir -p opencv_sdk/src/main/java/org/opencv
+        mkdir -p opencv_sdk/src/main/jniLibs
+        
+        # Copy Java sources
+        cp -r OpenCV-android-sdk/sdk/java/src/org/opencv/* opencv_sdk/src/main/java/org/opencv/
+        
+        # Copy native libraries for all architectures
+        for arch in arm64-v8a armeabi-v7a x86 x86_64; do
+          if [ -d "OpenCV-android-sdk/sdk/native/libs/$arch" ]; then
+            cp -r "OpenCV-android-sdk/sdk/native/libs/$arch" opencv_sdk/src/main/jniLibs/
+          fi
+        done
+        
+        # Create AndroidManifest.xml for library module
         cat > opencv_sdk/src/main/AndroidManifest.xml << 'EOF'
         <?xml version="1.0" encoding="utf-8"?>
         <manifest xmlns:android="http://schemas.android.com/apk/res/android"
             package="org.opencv">
         </manifest>
         EOF
+        
+        # Cleanup
+        rm -rf OpenCV-android-sdk opencv-sdk.zip
 
     - name: Create dummy local.properties
       run: echo "sdk.dir=$ANDROID_HOME" > local.properties
