@@ -21,6 +21,26 @@ jobs:
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
 
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v4
+
+    - name: Create Gradle Wrapper
+      run: |
+        # Create gradle wrapper for Gradle 8.4 (compatible with AGP 8.2.2)
+        mkdir -p gradle/wrapper
+        cat > gradle/wrapper/gradle-wrapper.properties << 'EOF'
+        distributionBase=GRADLE_USER_HOME
+        distributionPath=wrapper/dists
+        distributionUrl=https\://services.gradle.org/distributions/gradle-8.4-bin.zip
+        zipStoreBase=GRADLE_USER_HOME
+        zipStorePath=wrapper/dists
+        EOF
+        # Download gradle-wrapper.jar
+        curl -L https://raw.githubusercontent.com/gradle/gradle/v8.4.0/gradle/wrapper/gradle-wrapper.jar -o gradle/wrapper/gradle-wrapper.jar
+        # Create gradlew script
+        curl -L https://raw.githubusercontent.com/gradle/gradle/v8.4.0/gradlew -o gradlew
+        chmod +x gradlew
+
     - name: Download and Setup OpenCV Android SDK
       run: |
         # Download OpenCV SDK
@@ -55,25 +75,10 @@ jobs:
     - name: Create dummy local.properties
       run: echo "sdk.dir=$ANDROID_HOME" > local.properties
 
-    - name: Create gradlew
-      run: |
-        cat > gradlew << 'SCRIPT'
-        #!/bin/sh
-        exec gradle "$@"
-        SCRIPT
-        chmod +x gradlew
-
-    - name: Grant execute permission for gradlew
-      run: chmod +x gradlew || true
-
     - name: Build Debug APK
       run: |
-        cd $GITHUB_WORKSPACE
         $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "build-tools;34.0.0" "platforms;android-34"
-        ./gradlew assembleDebug 2>&1 || true
-        if [ ! -f app/build/outputs/apk/debug/app-debug.apk ]; then
-          gradle assembleDebug 2>&1
-        fi
+        ./gradlew assembleDebug
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
