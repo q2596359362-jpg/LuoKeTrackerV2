@@ -63,7 +63,7 @@ jobs:
         </manifest>
         EOF
         
-        # Create build.gradle for OpenCV library module
+        // Create build.gradle for OpenCV library module
         cat > opencv_sdk/build.gradle << 'EOF'
         plugins {
             id 'com.android.library'
@@ -77,6 +77,10 @@ jobs:
             compileOptions {
                 sourceCompatibility JavaVersion.VERSION_17
                 targetCompatibility JavaVersion.VERSION_17
+            }
+            // AGP 8.x disables BuildConfig by default, OpenCV needs it
+            buildFeatures {
+                buildConfig = true
             }
         }
         EOF

@@ -21,4 +21,9 @@ android {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
+
+    // AGP 8.x disables BuildConfig by default, OpenCV needs it
+    buildFeatures {
+        buildConfig = true
+    }
 }
