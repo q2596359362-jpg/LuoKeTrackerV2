@@ -48,6 +48,6 @@ dependencies {
     implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.7.0'
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
     
-    // OpenCV Android SDK (本地模块)
-    implementation project(':opencv_sdk')
+    // OpenCV Android SDK - 本地 AAR
+    implementation files('libs/opencv-490.aar')
 }

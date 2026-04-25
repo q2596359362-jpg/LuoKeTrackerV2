@@ -15,4 +15,3 @@ dependencyResolutionManagement {
 
 rootProject.name = "LuoKeTracker"
 include ':app'
-include ':opencv_sdk'
