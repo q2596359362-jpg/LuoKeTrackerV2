@@ -20,11 +20,10 @@ class App : Application() {
         val success = OpenCVLoader.initDebug()
         if (success) {
             openCVLoaded = true
-            Log.d(TAG, "OpenCV 初始化成功: ${OpenCVLoader.getOpenCVVersion()}")
+            Log.d(TAG, "OpenCV initialized successfully")
         } else {
             openCVLoaded = false
-            Log.e(TAG, "OpenCV 初始化失败，将尝试异步加载")
-            OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_4_9_0, this)
+            Log.e(TAG, "OpenCV initialization failed")
         }
     }
 }
