@@ -38,26 +38,74 @@ jobs:
         curl -sL https://raw.githubusercontent.com/gradle/gradle/v8.4.0/gradlew -o gradlew
         chmod +x gradlew
 
-    - name: Download OpenCV SDK AAR + Native Libs
+    - name: Download OpenCV SDK and Build AAR
       run: |
         # Download OpenCV Android SDK
         curl -L https://github.com/opencv/opencv/releases/download/4.9.0/opencv-4.9.0-android-sdk.zip -o opencv-sdk.zip
         unzip -q opencv-sdk.zip
         
-        # Copy the pre-built AAR (contains Java classes + resources)
-        mkdir -p app/libs
-        cp OpenCV-android-sdk/sdk/java/openCVLibrary490-release.aar app/libs/opencv-490.aar
+        # Set up OpenCV as a local library module with all required files
+        mkdir -p opencv_sdk/src/main/java
+        mkdir -p opencv_sdk/src/main/res/values
         
-        # Copy native .so libraries into app's jniLibs
-        mkdir -p app/src/main/jniLibs
+        # Copy Java sources
+        cp -r OpenCV-android-sdk/sdk/java/src/* opencv_sdk/src/main/java/
+        
+        # Copy resources (contains attrs.xml needed by CameraBridgeViewBase)
+        if [ -d "OpenCV-android-sdk/sdk/java/res" ]; then
+          cp -r OpenCV-android-sdk/sdk/java/res/* opencv_sdk/src/main/res/
+        fi
+        
+        # Create proper AndroidManifest with namespace for AGP 8.x
+        cat > opencv_sdk/src/main/AndroidManifest.xml << 'EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+        </manifest>
+        EOF
+        
+        # Create build.gradle for OpenCV library module
+        cat > opencv_sdk/build.gradle << 'EOF'
+        plugins {
+            id 'com.android.library'
+        }
+        android {
+            namespace 'org.opencv'
+            compileSdk 34
+            defaultConfig {
+                minSdk 26
+            }
+            compileOptions {
+                sourceCompatibility JavaVersion.VERSION_17
+                targetCompatibility JavaVersion.VERSION_17
+            }
+        }
+        EOF
+        
+        # Create opencv_sdk settings include
+        cat > opencv_sdk/settings.gradle << 'EOF'
+        // This module is included by the root settings.gradle
+        EOF
+        
+        # Copy native libraries into jniLibs
+        mkdir -p opencv_sdk/src/main/jniLibs
         for arch in arm64-v8a armeabi-v7a; do
           if [ -d "OpenCV-android-sdk/sdk/native/libs/$arch" ]; then
-            cp -r "OpenCV-android-sdk/sdk/native/libs/$arch" app/src/main/jniLibs/
+            cp -r "OpenCV-android-sdk/sdk/native/libs/$arch" opencv_sdk/src/main/jniLibs/
           fi
         done
         
-        # Cleanup
+        # Cleanup SDK zip
         rm -rf OpenCV-android-sdk opencv-sdk.zip
+
+    - name: Update settings.gradle to include opencv_sdk
+      run: |
+        # Re-add opencv_sdk module to settings
+        sed -i "/include ':app'/a include ':opencv_sdk'" settings.gradle
+
+    - name: Update app build.gradle to use opencv_sdk module
+      run: |
+        # Switch from AAR to project dependency
+        sed -i "s|implementation files('libs/opencv-490.aar')|implementation project(':opencv_sdk')|" app/build.gradle
 
     - name: Create dummy local.properties
       run: echo "sdk.dir=$ANDROID_HOME" > local.properties
