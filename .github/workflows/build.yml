@@ -1,0 +1,78 @@
+name: Build APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+
+    - name: Download OpenCV Android SDK
+      run: |
+        curl -L https://github.com/opencv/opencv/releases/download/4.9.0/opencv-4.9.0-android-sdk.zip -o opencv-sdk.zip
+        unzip -q opencv-sdk.zip
+        cp -r OpenCV-android-sdk/sdk/java opencv_sdk/src
+        cp -r OpenCV-android-sdk/sdk/native/libs opencv_sdk/src/main/jniLibs
+        mkdir -p opencv_sdk/src/main
+        mv opencv_sdk/src/jniLibs opencv_sdk/src/main/jniLibs 2>/dev/null || true
+        mkdir -p opencv_sdk/src/main/java
+        cp -r OpenCV-android-sdk/sdk/java/src/* opencv_sdk/src/main/java/ 2>/dev/null || true
+        rm -rf OpenCV-android-sdk opencv-sdk.zip
+
+    - name: Prepare OpenCV module
+      run: |
+        mkdir -p opencv_sdk/src/main
+        if [ -d "opencv_sdk/src/jniLibs" ]; then
+          cp -r opencv_sdk/src/jniLibs opencv_sdk/src/main/jniLibs
+        fi
+        cat > opencv_sdk/src/main/AndroidManifest.xml << 'EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+            package="org.opencv">
+        </manifest>
+        EOF
+
+    - name: Create dummy local.properties
+      run: echo "sdk.dir=$ANDROID_HOME" > local.properties
+
+    - name: Create gradlew
+      run: |
+        cat > gradlew << 'SCRIPT'
+        #!/bin/sh
+        exec gradle "$@"
+        SCRIPT
+        chmod +x gradlew
+
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew || true
+
+    - name: Build Debug APK
+      run: |
+        cd $GITHUB_WORKSPACE
+        $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "build-tools;34.0.0" "platforms;android-34"
+        ./gradlew assembleDebug 2>&1 || true
+        if [ ! -f app/build/outputs/apk/debug/app-debug.apk ]; then
+          gradle assembleDebug 2>&1
+        fi
+
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: app-debug
+        path: app/build/outputs/apk/debug/*.apk
+        retention-days: 30
