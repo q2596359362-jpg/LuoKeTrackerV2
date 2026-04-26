@@ -59,14 +59,35 @@ class MainActivity : AppCompatActivity() {
         loadSavedConfig()
 
         // 检查 OpenCV 加载状态
-        if (!App.openCVLoaded) {
-            binding.tvStatus.text = "⚠ OpenCV 加载中，请稍后重试"
-            binding.tvStatus.setTextColor(0xFFFF9800.toInt())
+        updateOpenCVStatus()
+    }
+
+    private fun updateOpenCVStatus() {
+        if (App.openCVLoaded) {
+            binding.tvStatus.text = "✓ OpenCV 已就绪"
+            binding.tvStatus.setTextColor(0xFF4CAF50.toInt())
+        } else {
+            val err = App.loadError
+            if (err.isNotEmpty()) {
+                binding.tvStatus.text = "⚠ $err"
+                binding.tvStatus.setTextColor(0xFFF44336.toInt())
+                binding.btnStart.isEnabled = false
+                binding.btnStart.text = "OpenCV 未加载"
+            } else {
+                binding.tvStatus.text = "⚠ OpenCV 加载中..."
+                binding.tvStatus.setTextColor(0xFFFF9800.toInt())
+                binding.root.postDelayed({ updateOpenCVStatus() }, 1000)
+            }
         }
     }
 
     private fun setupButtons() {
         binding.btnStart.setOnClickListener {
+            if (!App.openCVLoaded) {
+                Toast.makeText(this, "OpenCV 未加载，无法开始追踪", Toast.LENGTH_LONG).show()
+                updateOpenCVStatus()
+                return@setOnClickListener
+            }
             if (!Settings.canDrawOverlays(this)) {
                 overlayLauncher.launch(
                     Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,

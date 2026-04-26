@@ -81,6 +81,13 @@ jobs:
 
         rm -rf OpenCV-android-sdk opencv-sdk.zip
 
+    - name: Verify OpenCV native libs
+      run: |
+        echo "=== Checking OpenCV .so files ==="
+        find opencv_sdk/src/main/jniLibs -name "*.so" -exec ls -la {} \;
+        echo "=== Checking OpenCV java sources ==="
+        find opencv_sdk/src/main/java -name "*.java" | head -5
+
     - name: Update settings.gradle
       run: sed -i "/include ':app'/a include ':opencv_sdk'" settings.gradle
 
